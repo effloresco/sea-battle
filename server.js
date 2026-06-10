@@ -5,6 +5,13 @@ import { Server } from 'socket.io';
 const app = express();
 const server = createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
+const BOARD_SIZE = 10;
+let game = {
+    players: [],
+    boards: {},
+    turn: null,
+    winner: null
+};
 
 function createEmptyBoard() {
     let board = [];
@@ -58,5 +65,43 @@ function placeShips(board) {
         }
     });
 }
+
+function sendState() {
+    if (game.players < 2) return;
+    game.players.forEach(pId => {
+        const oppId = game.players.find(id => id !== pId);
+        const opponentBoard = oppId ? game.boards[oppId].map(c => ({
+            X: c.X, Y: c.Y, Status: (c.Status === 1) ? 0 : c.Status
+        })) : createEmptyBoard();
+
+        const myBoard = game.boards[pId];
+
+        io.to(pId).emit('update', {
+            opponentBoard: opponentBoard,
+            myBoard: myBoard,
+            isMyTurn: game.turn === pId,
+            ready: game.players.length === 2,
+            winner: null
+        });
+    });
+}
+
+io.on('connection', (socket) => {
+    console.log('User connected:', socket.id);
+
+    socket.on('joinGame', () => {
+        if (game.players.length < 2) {
+            game.players.push(socket.id);
+            if (game.players.length == 1)
+                game.turn = socket.id;
+
+            const board = createEmptyBoard();
+            placeShips(board);
+            game.boards[socket.id] = board;
+        }
+
+        sendState();
+    });
+});
 
 server.listen(3000, () => console.log('Server is online on port 3000'));
