@@ -67,9 +67,11 @@ function placeShips(board) {
 }
 
 function sendState() {
-    if (game.players < 2) return;
+    if (game.players.length === 0) return;
+
     game.players.forEach(pId => {
         const oppId = game.players.find(id => id !== pId);
+
         const opponentBoard = oppId ? game.boards[oppId].map(c => ({
             X: c.X, Y: c.Y, Status: (c.Status === 1 && !game.winner) ? 0 : c.Status
         })) : createEmptyBoard();
@@ -86,25 +88,32 @@ function sendState() {
     });
 }
 
+function join(pId) {
+
+
+
+}
+
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    console.log('User connected: ', socket.id);
 
     socket.on('joinGame', () => {
         if (game.players.length < 2) {
             game.players.push(socket.id);
+
             if (game.players.length == 1)
                 game.turn = socket.id;
 
             const board = createEmptyBoard();
             placeShips(board);
             game.boards[socket.id] = board;
-        }
+        };
 
         sendState();
     });
 
     socket.on('shot', ({x, y }) => {
-        if ( game.winner || game.turn !== socket.id) return;
+        if (game.winner || game.turn !== socket.id) return;
         const oppId = game.players.find(id => id !== socket.id);
         const cell = game.boards[oppId].find(c => c.X == x && c.Y == y);
         if (cell && cell.Status <= 1) {
@@ -119,6 +128,30 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on("disconnect", () => {
+        console.log('User disconnected: ', socket.id);
+
+        const index = game.players.indexOf(socket.id);
+        if (index > -1) {
+            game.players.splice(index, 1);
+
+            delete game.boards[socket.id];
+            game.winner = null;
+
+            if (game.players.length > 0) {
+                const remainingPlayerId = game.players[0];
+
+                const newBoard = createEmptyBoard();
+                placeShips(newBoard);
+                game.boards[remainingPlayerId] = newBoard;
+
+                game.turn = remainingPlayerId;
+            } else {
+                game.turn = null;
+            }
+            sendState();
+        }
+    });
 });
 
 server.listen(3000, () => console.log('Server is online on port 3000'));
