@@ -95,36 +95,72 @@ function getReportConfig(data) {
     return {
         dataSource: {
             data: data,
-            mapping: { "X": { type: "string" }, "Y": { type: "string" }, "Status": { type: "number" } }
+            mapping: {
+                "X": { type: "string" },
+                "Y": { type: "string" },
+                "Status": { type: "number" }
+            }
         },
-
         slice: {
             rows: [{ uniqueName: "Y" }],
             columns: [{ uniqueName: "X" }],
             measures: [{ uniqueName: "Status", aggregation: "sum" }]
         },
+        options: {
+            grid: {
+                type: "compact",
+                showTotals: "off",
+                showGrandTotals: "off",
+                showHeaders: true,
+                showHierarchyCaptions: false,
+            }
+        },
+        tableSizes: {
+            columns: [
+                { width: 40, idx: 0 }, { width: 40, idx: 1 }, { width: 40, idx: 2 },
+                { width: 40, idx: 3 }, { width: 40, idx: 4 }, { width: 40, idx: 5 },
+                { width: 40, idx: 6 }, { width: 40, idx: 7 }, { width: 40, idx: 8 },
+                { width: 40, idx: 9 }, { width: 40, idx: 10 }
+            ]
+        },
         conditions: [
-            { formula: "#value = 0", format: { backgroundColor: "#65a5d3", color: "#65a5d3" } },
-            { formula: "#value = 1", format: { backgroundColor: "#27AE60", color: "#27AE60" } },
-            { formula: "#value = 2", format: { backgroundColor: "#ecf0f1", color: "#ecf0f1" } },
-            { formula: "#value = 3", format: { backgroundColor: "#e74c3c", color: "#e74c3c" } }
-        ],
-        options: { grid: { type: "compact", showTotals: "off", showGrandTotals: "off" } }
+    { 
+        formula: "#value = 0", 
+        format: { backgroundColor: "#65a5d3", color: "#65a5d3" } 
+    },
+    { 
+        formula: "#value = 1", 
+        format: { backgroundColor: "#27AE60", color: "#27AE60" } 
+    },
+    { 
+        formula: "#value = 2", 
+        format: { backgroundColor: "#ecf0f1", color: "#ecf0f1" } 
+    },
+    { 
+        formula: "#value = 3", 
+        format: { backgroundColor: "#e74c3c", color: "#e74c3c" } 
+    }
+]
     };
 }
 
-pivotEnemy = new WebDataRocks({
-    container: "#pivotEnemy",
-    cellclick: function(cell) {
-        if (cell.type === "value") {
-            const x = cell.columns[0].caption;
-            const y = cell.rows[0].caption;
-            socket.emit('shot', { x, y }); 
-        }
-    }
-});
+        pivotEnemy = new WebDataRocks({
+            container: "#pivotEnemy",
+            report: getReportConfig([], true),
+            cellclick: function(cell) {
+                const statusEl = document.getElementById('status');
+                if (cell.type === "value" && statusEl.dataset.isTurn === "true" && !statusEl.dataset.win) {
+                    const x = cell.columns[0].caption;
+                    const y = cell.rows[0].caption;
+                    socket.emit('shot', { x, y });
+                }
+            }
+        });
 
-pivotMy = new WebDataRocks({ container: "#pivotMy" });
+        pivotMy = new WebDataRocks({
+            container: "#pivotMy",
+            report: getReportConfig([], false)
+        });
 
         socket.on('update', (data) => {
             const statusEl = document.getElementById('status');
