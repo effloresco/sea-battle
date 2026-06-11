@@ -31,11 +31,57 @@
             text-align: center;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
+
+        .game-container {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            width: 100%;
+            max-width: 1500px;
+        }
+
+        .board-wrapper {
+            width: 680px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .board-caption {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #34495e;
+        }
+
+        .pivot-host {
+            width: 100%;
+            height: 720px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
     </style>
 </head>
 
 <body>
     <div id="status">Підключення...</div>
+
+    <div class="game-container">
+
+        <div class="board-wrapper">
+            <div class="board-caption">Ваше поле</div>
+            <div id="pivotMy" class="pivot-host"></div>
+        </div>
+
+        <div class="board-wrapper">
+            <div class="board-caption">Поле опонента</div>
+            <div id="pivotEnemy" class="pivot-host"></div>
+        </div>
+
+        
+    </div>
     <script>
         const socket = io('http://localhost:3000');
 
@@ -43,22 +89,67 @@
             socket.emit('joinGame');
         });
 
+        let pivotEnemy, pivotMy;
+
+function getReportConfig(data) {
+    return {
+        dataSource: {
+            data: data,
+            mapping: { "X": { type: "string" }, "Y": { type: "string" }, "Status": { type: "number" } }
+        },
+
+        slice: {
+            rows: [{ uniqueName: "Y" }],
+            columns: [{ uniqueName: "X" }],
+            measures: [{ uniqueName: "Status", aggregation: "sum" }]
+        },
+        conditions: [
+            { formula: "#value = 0", format: { backgroundColor: "#65a5d3", color: "#65a5d3" } },
+            { formula: "#value = 1", format: { backgroundColor: "#27AE60", color: "#27AE60" } },
+            { formula: "#value = 2", format: { backgroundColor: "#ecf0f1", color: "#ecf0f1" } },
+            { formula: "#value = 3", format: { backgroundColor: "#e74c3c", color: "#e74c3c" } }
+        ],
+        options: { grid: { type: "compact", showTotals: "off", showGrandTotals: "off" } }
+    };
+}
+
+pivotEnemy = new WebDataRocks({
+    container: "#pivotEnemy",
+    cellclick: function(cell) {
+        if (cell.type === "value") {
+            const x = cell.columns[0].caption;
+            const y = cell.rows[0].caption;
+            socket.emit('shot', { x, y }); 
+        }
+    }
+});
+
+pivotMy = new WebDataRocks({ container: "#pivotMy" });
+
         socket.on('update', (data) => {
             const statusEl = document.getElementById('status');
             statusEl.dataset.isTurn = data.isMyTurn;
             statusEl.dataset.win = data.winner ? "true" : "";
-        
-        if (data.winner) {
-            statusEl.innerText = data.winner;
-            statusEl.style.background = data.winner.includes("WIN") ? "#f1c40f" : "#34495e";
-        } else if (!data.ready) {
-            statusEl.innerText = "Очікування суперника...";
-            statusEl.style.background = "#95a5a6";
-        } else {
-            statusEl.innerText = data.isMyTurn ? "Ваш хід" : "Хід опонента (очікуйте)";
-            statusEl.style.background = data.isMyTurn ? "#2ecc71" : "#e74c3c";
-        }
+
+            if (data.winner) {
+                statusEl.innerText = data.winner;
+                statusEl.style.background = data.winner.includes("WIN") ? "#f1c40f" : "#34495e";
+            } else if (!data.ready) {
+                statusEl.innerText = "Очікування суперника...";
+                statusEl.style.background = "#95a5a6";
+            } else {
+                statusEl.innerText = data.isMyTurn ? "Ваш хід" : "Хід опонента (очікуйте)";
+                statusEl.style.background = data.isMyTurn ? "#2ecc71" : "#e74c3c";
+            }
+
+            const formattedEnemy = data.opponentBoard.map(c => ({ X: String(c.X), Y: String(c.Y), Status: c.Status }));
+            pivotEnemy.setReport(getReportConfig(formattedEnemy, true));
+
+            const formattedMy = data.myBoard.map(c => ({ X: String(c.X), Y: String(c.Y), Status: c.Status }));
+            pivotMy.setReport(getReportConfig(formattedMy, false));
+
         });
     </script>
 </body>
+
 </html>
