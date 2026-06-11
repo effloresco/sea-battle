@@ -50,6 +50,7 @@
         
         if (data.winner) {
             statusEl.innerText = data.winner;
+            statusEl.style.background = data.winner.includes("WIN") ? "#f1c40f" : "#34495e";
         } else if (!data.ready) {
             statusEl.innerText = "Очікування суперника...";
             statusEl.style.background = "#95a5a6";

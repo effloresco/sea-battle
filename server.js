@@ -71,7 +71,7 @@ function sendState() {
     game.players.forEach(pId => {
         const oppId = game.players.find(id => id !== pId);
         const opponentBoard = oppId ? game.boards[oppId].map(c => ({
-            X: c.X, Y: c.Y, Status: (c.Status === 1) ? 0 : c.Status
+            X: c.X, Y: c.Y, Status: (c.Status === 1 && !game.winner) ? 0 : c.Status
         })) : createEmptyBoard();
 
         const myBoard = game.boards[pId];
@@ -81,7 +81,7 @@ function sendState() {
             myBoard: myBoard,
             isMyTurn: game.turn === pId,
             ready: game.players.length === 2,
-            winner: null
+            winner: game.winner ? (game.winner === pId ? "YOU WIN!" : "YOU LOSE!") : null
         });
     });
 }
@@ -102,6 +102,23 @@ io.on('connection', (socket) => {
 
         sendState();
     });
+
+    socket.on('shot', ({x, y }) => {
+        if ( game.winner || game.turn !== socket.id) return;
+        const oppId = game.players.find(id => id !== socket.id);
+        const cell = game.boards[oppId].find(c => c.X == x && c.Y == y);
+        if (cell && cell.Status <= 1) {
+            if (cell.Status === 1) {
+                cell.Status = 3;
+                if (!game.boards[oppId].some(c => c.Status === 1)) game.winner = socket.id;
+            } else {
+                cell.Status = 2;
+                game.turn = oppId;
+            }
+            sendState();
+        }
+    });
+
 });
 
 server.listen(3000, () => console.log('Server is online on port 3000'));
